@@ -1,0 +1,11 @@
+#Theosis: stop charging at 80 %. ASUS firmware resets the limit every boot, so this runs on every boot.
+[Unit]
+Description=Theosis battery charge limit 80 percent
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'for f in /sys/class/power_supply/BAT*/charge_control_end_threshold; do echo 80 > "$f"; done'
+
+[Install]
+WantedBy=multi-user.target

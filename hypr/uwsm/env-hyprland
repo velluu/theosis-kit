@@ -1,0 +1,6 @@
+# ~/.config/uwsm/env-hyprland, read by uwsm only for Hyprland
+# HYPR* and AQ_* variables (wiki uwsm page)
+# Render on the Intel iGPU only. Needs the udev rule in NOTES.md.
+# HDMI is wired to the 4060, so HDMI needs :/dev/dri/nvidia-dgpu appended and a re-login.
+export AQ_DRM_DEVICES=/dev/dri/intel-igpu
+export HYPRCURSOR_SIZE=24

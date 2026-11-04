@@ -1,0 +1,885 @@
+<title>Theosis Linux Build</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column, sticky part bar, each step is a checklist card with copyable command lines */
+:root {
+  --bg: #0b1016; --panel: #111a23; --line: #1f2c38; --fg: #d9e6ee; --muted: #8296a6;
+  --accent: #1fbeff; --accent-ink: #04131c; --warn: #ffb547; --risk: #ff6b7a; --ok: #5be0a4;
+  --code-bg: #070b10;
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f3f7fa; --panel: #ffffff; --line: #d5e0e8; --fg: #10202c; --muted: #536a7b;
+  --accent: #0077b3; --accent-ink: #ffffff; --warn: #9a5a00; --risk: #b3243a; --ok: #157a4f; --code-bg: #eaf1f6; color-scheme: light } }
+:root[data-theme="light"] {
+  --bg: #f3f7fa; --panel: #ffffff; --line: #d5e0e8; --fg: #10202c; --muted: #536a7b;
+  --accent: #0077b3; --accent-ink: #ffffff; --warn: #9a5a00; --risk: #b3243a; --ok: #157a4f; --code-bg: #eaf1f6; color-scheme: light }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); margin: 0 }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+.wrap { max-width: 820px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 80px }
+header.top { display: grid; gap: 8px; padding-block: 16px 8px }
+.kicker { font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent) }
+h1 { font: 700 clamp(30px, 6vw, 44px)/1.05 var(--display); margin: 0; text-wrap: balance; letter-spacing: .01em }
+h2 { font: 700 26px/1.15 var(--display); margin: 0; text-wrap: balance }
+h3 { font: 600 19px/1.3 var(--display); margin: 0; text-wrap: balance }
+p { margin: 0; max-width: 68ch }
+.lede { color: var(--muted); max-width: 64ch }
+nav.parts { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); margin-inline: -4px; padding: 10px 4px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin }
+nav.parts a { flex: none; font: 600 13px/1 var(--mono); color: var(--fg); text-decoration: none; border: 1px solid var(--line); padding: 8px 10px; border-radius: 3px; white-space: nowrap }
+nav.parts a:hover, nav.parts a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none }
+.progress { font: 600 12px/1 var(--mono); color: var(--muted) }
+section.part { display: grid; gap: 18px; padding-top: 44px }
+.part-head { display: grid; gap: 6px; border-left: 3px solid var(--accent); padding-left: 14px }
+.part-head .where { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent) }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 18px; display: grid; gap: 12px; min-width: 0 }
+.step.done { opacity: .62 }
+.step-head { display: flex; gap: 12px; align-items: flex-start }
+.step-head input[type=checkbox] { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); flex: none }
+.step-id { font: 600 13px/1.5 var(--mono); color: var(--accent); flex: none; padding-top: 2px }
+.badges { display: flex; flex-wrap: wrap; gap: 6px }
+.badge { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 2px; border: 1px solid currentColor }
+.b-risk { color: var(--risk) } .b-call { color: var(--warn) } .b-safe { color: var(--ok) } .b-time { color: var(--muted) }
+.cmd { position: relative; background: var(--code-bg); border: 1px solid var(--line); border-radius: 3px; margin: 0; padding: 10px 44px 10px 12px; font: 14px/1.5 var(--mono); overflow-x: auto; white-space: pre; min-width: 0 }
+.cmd .copy { position: absolute; top: 6px; right: 6px; font: 600 11px/1 var(--mono); background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 2px; padding: 5px 6px; cursor: pointer }
+.cmd .copy:hover, .cmd .copy:focus-visible { color: var(--accent); border-color: var(--accent); outline: none }
+.cmd .copy.ok { color: var(--ok); border-color: var(--ok) }
+.cmds { display: grid; gap: 6px; min-width: 0 }
+.note { font-size: 15px; color: var(--muted) }
+.expect { border-left: 2px solid var(--ok); padding-left: 10px; font-size: 15px }
+.expect b, .fail b, .undo b { font: 600 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase }
+.expect b { color: var(--ok) }
+.fail { border-left: 2px solid var(--risk); padding-left: 10px; font-size: 15px }
+.fail b { color: var(--risk) }
+.undo { border-left: 2px solid var(--warn); padding-left: 10px; font-size: 15px }
+.undo b { color: var(--warn) }
+details { border: 1px dashed var(--line); border-radius: 3px; padding: 8px 12px }
+details summary { cursor: pointer; font: 600 14px/1.4 var(--mono); color: var(--muted) }
+details[open] { display: grid; gap: 8px }
+code { font: 14px/1.4 var(--mono); background: var(--code-bg); padding: 1px 5px; border-radius: 2px; border: 1px solid var(--line) }
+ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; max-width: 68ch }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px }
+table { border-collapse: collapse; width: 100%; font-size: 14px }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font: 600 12px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+.callout { background: var(--panel); border: 1px solid var(--accent); border-radius: 4px; padding: 16px; display: grid; gap: 8px }
+.callout h3 { color: var(--accent) }
+a { color: var(--accent) }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+@media (prefers-reduced-motion: no-preference) { .step { transition: opacity .2s } }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="kicker">Theosis · Ubuntu 26.04.1 · Hyprland 0.57.1</div>
+  <h1>Theosis Linux Build</h1>
+  <p class="lede">Everything for the Ubuntu side, in the order you do it. Each step tells you what it does, the exact command, what you should see, what to do if it fails, and how to undo it. Tick a step when it is done. Ticks are saved in this browser.</p>
+  <div class="progress" id="progress">0 of 0 steps done</div>
+</header>
+
+<nav class="parts" aria-label="Parts">
+  <a href="#rules">Rules</a>
+  <a href="#windows">A · Windows</a>
+  <a href="#bios">B · BIOS look</a>
+  <a href="#kit">C · Kit + inventory</a>
+  <a href="#safety">D · Safety net</a>
+  <a href="#cleanup">E · Cleanup</a>
+  <a href="#perf">F · Performance</a>
+  <a href="#desktop">G · Hyprland</a>
+  <a href="#agents">H · Agent stack</a>
+  <a href="#grub">I · Reboots</a>
+  <a href="#vmd">J · VMD off</a>
+  <a href="#return">K · Send back</a>
+</nav>
+
+<section class="part" id="rules">
+  <div class="part-head"><div class="where">Read first</div><h2>How to use this</h2></div>
+  <ul>
+    <li><b>One step at a time.</b> Finish it, check the "you should see" line, tick it. If what you see differs, stop at that step and use its "If it fails" line.</li>
+    <li><b>Commands are one per box.</b> Copy one box, paste it into the terminal (Ctrl+Shift+V), press Enter, wait for the prompt to come back, then the next box.</li>
+    <li><b>Anything that says <code>sudo</code></b> asks for your Ubuntu password. Typing it shows nothing on screen. That is normal.</li>
+    <li><b>Files you edit</b> open in <code>nano</code>. Save with Ctrl+O then Enter, quit with Ctrl+X. Arrow keys move the cursor.</li>
+    <li><b>Everything gets logged</b> into <code>~/theosis-kit/logs</code>. Part K copies the logs to Windows so Claude can read them in the next Windows session.</li>
+    <li><b>Claude on Ubuntu.</b> Claude Code is already installed on your Ubuntu (it did the 11-02 tuning). You can paste a step into it and ask it to explain or check output. It does not have the vault.</li>
+    <li><b>Badges:</b> <span class="badge b-safe">safe</span> cannot break anything, <span class="badge b-call">your call</span> a choice only you can make, <span class="badge b-risk">risk</span> can stop boot or a feature, read the undo first.</li>
+  </ul>
+  <div class="callout">
+    <h3>What is already true (measured)</h3>
+    <ul>
+      <li>Windows Fast Startup is off and there is no hibernation file. Ubuntu can open your C: drive for reading and writing. (Read from Windows 2026-11-04.)</li>
+      <li>Windows finished the 2023 Secure Boot certificate move on 2026-09-16, and Ubuntu has booted fine with Secure Boot on since then. The scary "Invalid signature" case from the blueprint has not hit you.</li>
+      <li>Windows Update has never installed an ASUS BIOS on this laptop, only two ASUS drivers. No need to block driver updates.</li>
+      <li>From the 11-02/03 tuning: C01 to C16 are applied and verified (idle storm fix, video decode, zram, sleep and Wi-Fi fixes, lid locks). This guide keeps all of them.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="part" id="windows">
+  <div class="part-head"><div class="where">Part A · on Windows, before you reboot</div><h2>Windows side</h2><p class="note">Do this now, while Claude is still running on Windows.</p></div>
+
+  <div class="step" data-step="A1">
+    <div class="step-head"><input type="checkbox" id="chk-A1" aria-label="A1 done"><span class="step-id">A1</span><h3>Fix the 4 hour clock difference</h3></div>
+    <div class="badges"><span class="badge b-call">your call</span><span class="badge b-safe">reversible</span><span class="badge b-time">1 min</span></div>
+    <p>Ubuntu keeps the hardware clock in UTC. Windows reads it as Gulf time, so Windows (and WSL, and every vault timestamp) runs 4 hours slow after each Ubuntu boot. This one registry value tells Windows to read the hardware clock as UTC too. It survives any Linux reinstall, which is why the blueprint picks it over the Ubuntu-side fix.</p>
+    <p>Open <b>Terminal (Admin)</b>: right-click Start, then Terminal (Admin). Paste:</p>
+    <div class="cmds">
+      <pre class="cmd">reg add "HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" /v RealTimeIsUniversal /t REG_QWORD /d 1 /f</pre>
+    </div>
+    <p>Then fix the clock once: Settings, Time and language, Date and time, press <b>Sync now</b>. If Sync now is greyed out, turn "Set time automatically" off and on.</p>
+    <div class="expect"><b>You should see</b> "The operation completed successfully." and after Sync now the right Gulf time.</div>
+    <div class="fail"><b>If it fails</b> "Access is denied" means the terminal is not Admin. Reopen it as Admin.</div>
+    <div class="undo"><b>Undo</b> <code>reg delete "HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" /v RealTimeIsUniversal /f</code></div>
+    <details><summary>The other option (not recommended)</summary><p>In Ubuntu, <code>sudo timedatectl set-local-rtc 1</code> makes Ubuntu keep the clock in Gulf time instead. It works because Dubai has no daylight saving, but a Linux reinstall loses it, and Ubuntu prints a warning about it. Pick one of the two, never both.</p></details>
+  </div>
+
+  <div class="step" data-step="A2">
+    <div class="step-head"><input type="checkbox" id="chk-A2" aria-label="A2 done"><span class="step-id">A2</span><h3>Know where the kit is</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span></div>
+    <p>The scripts and config files this guide uses, plus this guide as <code>guide/theosis-linux-guide.html</code>, live in the public repo <b>github.com/velluu/theosis-kit</b>. Ubuntu clones it in Part C. A copy also sits in <code>C:\Users\karth\Downloads\theosis-kit</code> as a fallback if GitHub is unreachable.</p>
+  </div>
+
+  <div class="step" data-step="A3">
+    <div class="step-head"><input type="checkbox" id="chk-A3" aria-label="A3 done"><span class="step-id">A3</span><h3>Know your Windows password</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span></div>
+    <p>Part J boots Windows once in Safe Mode. Safe Mode may not accept your PIN, only the account password. Make sure you know it before Part J. Nothing to do now if you do.</p>
+  </div>
+</section>
+
+<section class="part" id="bios">
+  <div class="part-head"><div class="where">Part B · in the BIOS, looking only</div><h2>BIOS look, change nothing</h2></div>
+  <div class="step" data-step="B1">
+    <div class="step-head"><input type="checkbox" id="chk-B1" aria-label="B1 done"><span class="step-id">B1</span><h3>Find the VMD switch</h3></div>
+    <div class="badges"><span class="badge b-safe">look only</span><span class="badge b-time">3 min</span></div>
+    <ol>
+      <li>Restart. While the ASUS logo shows, tap <b>F2</b>.</li>
+      <li>Press <b>F7</b> for Advanced Mode.</li>
+      <li>Open the <b>Advanced</b> tab. Look for an entry named like <b>VMD setup menu</b> or <b>Intel VMD controller</b>. Open it and note what it says. Do not change it.</li>
+      <li>On the <b>Security</b> or <b>Boot</b> tab, note that Secure Boot shows <b>Enabled</b>.</li>
+      <li>Press <b>Esc</b>, choose <b>Discard changes and exit</b> (or "Exit without saving"). The laptop restarts. Pick Ubuntu in the GRUB menu.</li>
+    </ol>
+    <div class="expect"><b>Write down</b> whether the VMD switch exists and its current value. You need it in Part J. A phone photo of the screen is fine.</div>
+    <div class="fail"><b>If you changed something by accident</b> choose "Discard changes and exit". Nothing is saved unless you press F10.</div>
+  </div>
+</section>
+
+<section class="part" id="kit">
+  <div class="part-head"><div class="where">Part C · on Ubuntu</div><h2>Get the kit, take the inventory</h2></div>
+
+  <div class="step" data-step="C1">
+    <div class="step-head"><input type="checkbox" id="chk-C1" aria-label="C1 done"><span class="step-id">C1</span><h3>Get the kit</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">1 min</span></div>
+    <p>Open a terminal (Ctrl+Alt+T) and clone the kit into your home folder:</p>
+    <div class="cmds">
+      <pre class="cmd">git clone https://github.com/velluu/theosis-kit ~/theosis-kit</pre>
+      <pre class="cmd">ls ~/theosis-kit</pre>
+    </div>
+    <div class="expect"><b>You should see</b> <code>README.md  etc  guide  hypr  scripts  user</code>. You can also open this guide on Ubuntu with <code>xdg-open ~/theosis-kit/guide/theosis-linux-guide.html</code>.</div>
+    <p class="note">If Claude updates the kit later, <code>git -C ~/theosis-kit pull</code> fetches the changes.</p>
+    <details><summary>If GitHub is unreachable: copy it from Windows instead</summary>
+      <p>Find the Windows partition (the big <code>ntfs</code> one, about 702 GiB, usually <code>nvme0n1p3</code>) and mount it:</p>
+      <pre class="cmd">lsblk -f</pre>
+      <pre class="cmd">udisksctl mount -b /dev/nvme0n1p3</pre>
+      <p>It prints <code>Mounted /dev/nvme0n1p3 at /media/...</code>. Replace <code>WINPATH</code> below with that path:</p>
+      <pre class="cmd">cp -r "WINPATH/Users/karth/Downloads/theosis-kit" ~/</pre>
+      <pre class="cmd">chmod +x ~/theosis-kit/scripts/*.sh</pre>
+    </details>
+  </div>
+
+  <div class="step" data-step="C2">
+    <div class="step-head"><input type="checkbox" id="chk-C2" aria-label="C2 done"><span class="step-id">C2</span><h3>Run the inventory</h3></div>
+    <div class="badges"><span class="badge b-safe">read only</span><span class="badge b-time">1 min</span></div>
+    <p>One script reads about 70 facts about your install and saves them: Secure Boot keys, boot entries, which services run, what uses RAM, boot time, GPU addresses, keyboard layout, battery path and more. It changes nothing. It also saves full copies of your Secure Boot key list and boot entries as baselines.</p>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/step0-inventory.sh</pre>
+    </div>
+    <div class="expect"><b>You should see</b> "Done. Saved to: /home/.../theosis-kit/logs/step0-....txt". Several later steps say "look in the inventory". Open it with <code>less ~/theosis-kit/logs/step0-*.txt</code> (q quits, / searches).</div>
+    <p>Quick checks to do now, by searching the file (press <code>/</code> in less and type the text):</p>
+    <ul>
+      <li><code>mokutil --sb-state</code> should say <b>SecureBoot enabled</b>.</li>
+      <li><code>verify-all.sh</code> should show PASS for every C check except C11.</li>
+      <li><code>localectl status</code> shows your keyboard layout (for example <code>us</code> or <code>gb</code>). Part G needs it.</li>
+      <li><code>nmcli -g 802-1x.password-flags</code> shows <code>0</code> or <code>1</code>. Part G needs it.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="part" id="safety">
+  <div class="part-head"><div class="where">Part D · on Ubuntu</div><h2>Safety net first</h2><p class="note">Every later step can be rolled back from here.</p></div>
+
+  <div class="step" data-step="D1">
+    <div class="step-head"><input type="checkbox" id="chk-D1" aria-label="D1 done"><span class="step-id">D1</span><h3>Install the rollback tools</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">2 min</span></div>
+    <p><b>etckeeper</b> puts every system config file in <code>/etc</code> under git, so any bad edit can be seen and reverted. <b>Timeshift</b> takes full snapshots of the system (not your home folder) and can restore them, even from the live USB.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo apt update</pre>
+      <pre class="cmd">sudo apt install etckeeper timeshift</pre>
+      <pre class="cmd">sudo git -C /etc log --oneline | head -3</pre>
+    </div>
+    <div class="expect"><b>You should see</b> at least one commit like "Initial commit".</div>
+    <div class="undo"><b>Undo</b> <code>sudo apt remove etckeeper timeshift</code></div>
+  </div>
+
+  <div class="step" data-step="D2">
+    <div class="step-head"><input type="checkbox" id="chk-D2" aria-label="D2 done"><span class="step-id">D2</span><h3>First system snapshot</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">10 to 25 min</span></div>
+    <p>Find the Ubuntu partition (the <code>ext4</code> one mounted at <code>/</code>, about 250 GiB, should be <code>nvme0n1p6</code>):</p>
+    <div class="cmds">
+      <pre class="cmd">findmnt -no SOURCE /</pre>
+      <pre class="cmd">sudo timeshift --create --rsync --snapshot-device /dev/nvme0n1p6 --comments "before theosis guide"</pre>
+      <pre class="cmd">sudo timeshift --list</pre>
+    </div>
+    <p class="note">The first snapshot copies the whole system once, so it is slow. Your SSD drops to 250 to 300 MB/s after about 4 GB of writing (measured 11-02). Later snapshots only copy changes.</p>
+    <div class="expect"><b>You should see</b> one snapshot listed with the comment "before theosis guide".</div>
+    <div class="fail"><b>If it fails</b> with "device not found", use the exact name <code>findmnt</code> printed.</div>
+    <div class="undo"><b>Restore later</b> <code>sudo timeshift --restore</code> and pick the snapshot. After a restore run <code>sudo efibootmgr -v</code> and check an "ubuntu" entry still exists.</div>
+  </div>
+
+  <div class="step" data-step="D3">
+    <div class="step-head"><input type="checkbox" id="chk-D3" aria-label="D3 done"><span class="step-id">D3</span><h3>Keep the USB stick ready</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span></div>
+    <p>Keep the Ubuntu USB you installed from. It is your way back in if a later step stops boot. If you ever need a fresh one, the image is <code>ubuntu-26.04.1-desktop-amd64.iso</code> from releases.ubuntu.com/26.04, checksum <code>601e30fbf5d97759367c632e2c33630665039b7e2158fd068403da3ccf1bda1f</code>.</p>
+    <p class="note">Home folder backups (restic) need a target: the Z8 or an external SSD. That is left for later. Timeshift covers the system, not your files.</p>
+  </div>
+</section>
+
+<section class="part" id="cleanup">
+  <div class="part-head"><div class="where">Part E · on Ubuntu</div><h2>Remove what you do not use</h2></div>
+  <p class="note">Every package Ubuntu 26.04.1 ships by default was checked against the archive this session: what it does, and what else it would pull out if removed. Do this part in a GNOME session, before Part G. Your GNOME login stays working the whole time.</p>
+  <div class="callout">
+    <h3>Two traps this part avoids</h3>
+    <ul>
+      <li><b>The file indexer (localsearch)</b> cannot be uninstalled. GNOME's file manager depends on it, and removing it takes the Ubuntu session with it. It gets switched off instead.</li>
+      <li><b>The location service (geoclue)</b> cannot be uninstalled either. Removing it removes GNOME itself and the login screen. Location gets turned off instead.</li>
+    </ul>
+    <p>Every removal below goes through <code>safe-purge.sh</code>. It first asks apt what would be removed, and stops with nothing changed if the list contains anything GNOME, the login screen, Wi-Fi, the NVIDIA driver, Brave, apt, the kernel or Hyprland needs, or if apt's dry run fails or warns. Only then does apt ask you to confirm with Y.</p>
+  </div>
+
+  <div class="step" data-step="E1">
+    <div class="step-head"><input type="checkbox" id="chk-E1" aria-label="E1 done"><span class="step-id">E1</span><h3>Snapshot and lock the essentials</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">5 min</span></div>
+    <p>A fresh snapshot, then mark the packages that must stay as "installed on purpose". Without this, a later <code>autoremove</code> could treat them as leftovers.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo timeshift --create --comments "before cleanup"</pre>
+      <pre class="cmd">sudo apt-mark manual gdm3 gnome-shell gnome-session-bin ubuntu-session gnome-control-center gnome-settings-daemon nautilus xdg-desktop-portal-gnome network-manager wpasupplicant power-profiles-daemon fwupd chrony kdump-tools switcheroo-control ubuntu-drivers-common software-properties-common</pre>
+      <pre class="cmd">dpkg -l brave-browser | tail -1</pre>
+      <pre class="cmd">snap list | grep -i -E 'brave|claude'</pre>
+    </div>
+    <div class="expect"><b>You should see</b> Brave as <code>ii  brave-browser</code> (installed from Brave's own apt repo), and nothing from the snap grep. If Brave shows up as a snap, do every step of Part E except E7, and tell Claude next session.</div>
+  </div>
+
+  <div class="step" data-step="E2">
+    <div class="step-head"><input type="checkbox" id="chk-E2" aria-label="E2 done"><span class="step-id">E2</span><h3>Crash reporting and telemetry</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">2 min</span></div>
+    <p><b>apport</b> catches every crash and builds a report. <b>whoopsie</b> uploads them. <b>ubuntu-report</b> and <b>ubuntu-insights</b> send usage data to Canonical. None of this helps you.</p>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh apport apport-gtk apport-core-dump-handler apport-symptoms whoopsie ubuntu-report ubuntu-insights</pre>
+      <pre class="cmd">cat /proc/sys/kernel/core_pattern</pre>
+    </div>
+    <div class="expect"><b>You should see</b> "Safe", then apt's list and a Y/n question. Answer Y. core_pattern should no longer mention apport. kdump for kernel crashes is separate and stays.</div>
+    <div class="undo"><b>Undo</b> <code>sudo apt install apport apport-gtk whoopsie</code></div>
+  </div>
+
+  <div class="step" data-step="E3">
+    <div class="step-head"><input type="checkbox" id="chk-E3" aria-label="E3 done"><span class="step-id">E3</span><h3>Background services you never use</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">2 min</span></div>
+    <ul>
+      <li><b>brltty</b>: braille display driver. Starts at boot, slows early boot, and is known to grab USB serial devices like microcontroller boards.</li>
+      <li><b>orca, speech-dispatcher</b>: screen reader and speech.</li>
+      <li><b>gnome-remote-desktop</b>: remote desktop server, starts on every boot. You use Tailscale and ssh.</li>
+      <li><b>modemmanager</b>: for 4G modems. The laptop has none.</li>
+      <li><b>avahi-daemon</b>: <code>.local</code> network name discovery. Tailscale gives you names already.</li>
+      <li><b>gamemode</b>: runs in every login, including Hyprland and ssh. Games stay on Windows.</li>
+      <li><b>wsdd</b>: Windows network share discovery. <b>hwctl</b> and <b>gnome-initial-setup</b>: first-boot helpers, already done.</li>
+    </ul>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh brltty orca speech-dispatcher gnome-remote-desktop modemmanager avahi-daemon gamemode gamemode-daemon wsdd hwctl gnome-initial-setup</pre>
+    </div>
+    <div class="undo"><b>Undo</b> <code>sudo apt install</code> with the same names.</div>
+    <details><summary>Optional, your call: Calendar and its background service</summary>
+      <p><b>evolution-data-server</b> runs in the background for GNOME Calendar and Contacts. If you never use GNOME Calendar, remove both. Calendar events stored there disappear.</p>
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh evolution-data-server gnome-calendar</pre>
+    </details>
+    <details><summary>Optional, your call: fingerprint login</summary>
+      <p>Search the inventory's <code>lsusb</code> section for "fingerprint", "Goodix" or "ELAN". If nothing matches, the laptop has no reader and this is safe:</p>
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh fprintd libpam-fprintd</pre>
+    </details>
+  </div>
+
+  <div class="step" data-step="E4">
+    <div class="step-head"><input type="checkbox" id="chk-E4" aria-label="E4 done"><span class="step-id">E4</span><h3>Printing</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">1 min</span></div>
+    <p>You have no printers (cups-browsed was already switched off on 11-02). This removes the whole print stack.</p>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh cups cups-daemon cups-browsed cups-client cups-bsd cups-filters cups-core-drivers cups-ipp-utils hplip hplip-data bluez-cups ipp-usb</pre>
+    </div>
+    <div class="undo"><b>Undo</b> <code>sudo apt install cups</code></div>
+  </div>
+
+  <div class="step" data-step="E5">
+    <div class="step-head"><input type="checkbox" id="chk-E5" aria-label="E5 done"><span class="step-id">E5</span><h3>Apps and help docs</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">1 min</span></div>
+    <p>Music player, photo manager, video player, torrent client, remote desktop client, backup tool, camera app, scanner, and the offline help pages. The script skips any that are not installed. The Startup Disk Creator stays, so you can always make a rescue USB.</p>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh rhythmbox shotwell showtime transmission-gtk transmission-common remmina deja-dup gnome-snapshot simple-scan ubuntu-docs gnome-user-docs</pre>
+    </div>
+    <details><summary>Optional, your call: LibreOffice (about 300 MiB)</summary>
+      <p>Only if you never open Word or Excel files on Linux.</p>
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh libreoffice-common libreoffice-core</pre>
+    </details>
+  </div>
+
+  <div class="step" data-step="E6">
+    <div class="step-head"><input type="checkbox" id="chk-E6" aria-label="E6 done"><span class="step-id">E6</span><h3>Switch off what cannot be removed</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">5 min</span></div>
+    <p>These packages are tied into GNOME, so they stay installed but stop running.</p>
+    <p><b>Ubuntu Pro ads in apt</b> (every <code>apt update</code> runs an extra hook):</p>
+    <div class="cmds">
+      <pre class="cmd">sudo pro config set apt_news=false</pre>
+      <pre class="cmd">sudo systemctl mask esm-cache.service</pre>
+    </div>
+    <p><b>Timers that wake up for nothing</b>: news in the login message, update popups, a disk check that only acts on LVM (you do not use it), and a daily man page index rebuild.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo systemctl disable --now motd-news.timer update-notifier-download.timer update-notifier-motd.timer e2scrub_all.timer man-db.timer</pre>
+      <pre class="cmd">systemctl --user mask update-notifier-crash.path update-notifier-release.path</pre>
+    </div>
+    <p><b>cloud-init</b> is for cloud servers and still runs a check at boot:</p>
+    <div class="cmds"><pre class="cmd">sudo touch /etc/cloud/cloud-init.disabled</pre></div>
+    <p><b>File indexer</b>: delete its index, then stop it for good. GNOME's file search then searches by name only.</p>
+    <div class="cmds">
+      <pre class="cmd">localsearch reset -s</pre>
+      <pre class="cmd">systemctl --user mask localsearch-3.service localsearch-control-3.service localsearch-writeback-3.service</pre>
+    </div>
+    <p><b>Location</b> off, and three popups that would also start inside Hyprland:</p>
+    <div class="cmds">
+      <pre class="cmd">gsettings set org.gnome.system.location enabled false</pre>
+      <pre class="cmd">mkdir -p ~/.config/autostart</pre>
+      <pre class="cmd">cp ~/theosis-kit/user/autostart/*.desktop ~/.config/autostart/</pre>
+    </div>
+    <div class="expect"><b>You should see</b> no errors. A line like "Unit ... does not exist" only means that item is not on your install. That is fine.</div>
+    <div class="undo"><b>Undo</b> <code>sudo systemctl unmask esm-cache.service</code>, <code>sudo systemctl enable --now</code> the timers, <code>systemctl --user unmask</code> the user units, <code>sudo rm /etc/cloud/cloud-init.disabled</code>, <code>rm ~/.config/autostart/*.desktop</code>, <code>sudo pro config unset apt_news</code>.</div>
+    <p class="note">Kept on purpose: packagekit (the PPA command in Part G needs it), unattended security upgrades, fwupd (firmware updates), Bluetooth, switcheroo-control (lets apps run on the NVIDIA GPU), kdump, plymouth, apt's daily timers, language packs.</p>
+  </div>
+
+  <div class="step" data-step="E7">
+    <div class="step-head"><input type="checkbox" id="chk-E7" aria-label="E7 done"><span class="step-id">E7</span><h3>Remove snaps completely</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">10 min</span></div>
+    <p>Ubuntu ships about 15 snaps (Firefox, Thunderbird, the App Center, the firmware updater, the security center and their runtimes). Each one is a disk image mounted at boot, and snapd runs all the time. Nothing in the desktop needs snapd itself, only the Firefox and Thunderbird snaps do. You use Brave. Firmware updates keep working through <code>fwupdmgr</code>.</p>
+    <p>The script stops on its own if Brave or Claude turns out to be a snap.</p>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/remove-snaps.sh</pre>
+      <pre class="cmd">bash ~/theosis-kit/scripts/safe-purge.sh snapd</pre>
+      <pre class="cmd">sudo cp ~/theosis-kit/etc/nosnap.pref /etc/apt/preferences.d/nosnap.pref</pre>
+      <pre class="cmd">sudo apt update</pre>
+      <pre class="cmd">apt policy snapd | head -3</pre>
+      <pre class="cmd">rm -rf ~/snap</pre>
+      <pre class="cmd">ls -d /snap /var/snap /var/lib/snapd</pre>
+    </div>
+    <div class="expect"><b>You should see</b> <code>Candidate: (none)</code> from apt policy (the pin blocks snapd from coming back), and "No such file or directory" for all three folders.</div>
+    <div class="fail"><b>If safe-purge stops on snapd</b> it lists which protected package would go. Do not force it. Bring the log back to Windows.</div>
+    <div class="undo"><b>Undo</b> <code>sudo rm /etc/apt/preferences.d/nosnap.pref</code>, <code>sudo apt update</code>, <code>sudo apt install snapd</code>, then <code>sudo snap install firefox</code> if wanted.</div>
+    <p class="note">Firmware updates from now on: <code>fwupdmgr refresh</code>, then <code>fwupdmgr get-updates</code>, then <code>sudo fwupdmgr update</code>.</p>
+  </div>
+
+  <div class="step" data-step="E8">
+    <div class="step-head"><input type="checkbox" id="chk-E8" aria-label="E8 done"><span class="step-id">E8</span><h3>GNOME extensions you do not need</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">1 min</span></div>
+    <p>Desktop icons run as a separate process. The snap prompts and snap search are useless now. Web search in the overview sends what you type to the web. Run these inside GNOME.</p>
+    <div class="cmds">
+      <pre class="cmd">gnome-extensions disable ding@rastersoft.com</pre>
+      <pre class="cmd">gnome-extensions disable snapd-prompting@canonical.com</pre>
+      <pre class="cmd">gnome-extensions disable snapd-search-provider@canonical.com</pre>
+      <pre class="cmd">gnome-extensions disable web-search-provider@ubuntu.com</pre>
+    </div>
+    <div class="undo"><b>Undo</b> <code>gnome-extensions enable</code> with the same name.</div>
+  </div>
+
+  <div class="step" data-step="E9">
+    <div class="step-head"><input type="checkbox" id="chk-E9" aria-label="E9 done"><span class="step-id">E9</span><h3>Clear the leftovers, then check everything</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">10 min with a reboot</span></div>
+    <p>First a dry run. Read the list. If it names any package from the E1 list, answer n in the next command.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo apt autoremove --purge --dry-run | grep -E '^(Purg|Remv)' | tee ~/theosis-kit/logs/autoremove-dryrun.txt</pre>
+      <pre class="cmd">sudo apt autoremove --purge</pre>
+      <pre class="cmd">sudo apt check</pre>
+      <pre class="cmd">dpkg -l ubuntu-desktop-minimal gdm3 gnome-shell ubuntu-session network-manager | tail -5</pre>
+    </div>
+    <div class="expect"><b>You should see</b> <code>ii</code> at the start of all five lines.</div>
+    <p>Reboot into Ubuntu, log in to GNOME, then:</p>
+    <div class="cmds">
+      <pre class="cmd">systemctl --failed</pre>
+      <pre class="cmd">systemctl --user --failed</pre>
+      <pre class="cmd">systemd-analyze | tee ~/theosis-kit/logs/boot-after-cleanup.txt</pre>
+      <pre class="cmd">systemd-analyze blame | head -20 | tee -a ~/theosis-kit/logs/boot-after-cleanup.txt</pre>
+      <pre class="cmd">nvidia-smi -L</pre>
+      <pre class="cmd">switcherooctl list</pre>
+      <pre class="cmd">mokutil --sb-state</pre>
+      <pre class="cmd">bash ~/projects/tuning/bench/verify-all.sh</pre>
+    </div>
+    <div class="expect"><b>You should see</b> no failed units, Wi-Fi connected, the RTX 4060 listed, two GPUs in switcherooctl, Secure Boot enabled, all PASS. Compare the boot time with the inventory's <code>systemd-analyze</code> line (22.1 s on a clean boot on 11-02). A single boot can still hit a 30 s SSD freeze until Part J, so judge it over three boots.</div>
+    <div class="fail"><b>If GNOME does not come up</b> press Ctrl+Alt+F3, log in, run <code>sudo timeshift --restore</code> and pick "before cleanup". Or do it from the USB.</div>
+  </div>
+</section>
+
+<section class="part" id="perf">
+  <div class="part-head"><div class="where">Part F · on Ubuntu</div><h2>Performance settings</h2><p class="note">CPU policy, turbo, scheduler and drivers were already maxed in the 11-02 tuning. These are what is left.</p></div>
+
+  <div class="step" data-step="F1">
+    <div class="step-head"><input type="checkbox" id="chk-F1" aria-label="F1 done"><span class="step-id">F1</span><h3>Builds use 16 jobs by default</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">1 min</span></div>
+    <p>Every <code>make</code> and CMake build runs 16 jobs in parallel instead of 1. Measured on Theosis with a Redis build on the charger: 36.1 s at 16 jobs, 41.5 s at 8, 137 s at 1. 16 leaves room for the desktop and skips the 2 slow LP cores.</p>
+    <div class="cmds">
+      <pre class="cmd">mkdir -p ~/.config/environment.d</pre>
+      <pre class="cmd">cp ~/theosis-kit/user/50-theosis-build.conf ~/.config/environment.d/</pre>
+    </div>
+    <p>Log out and back in, then check:</p>
+    <div class="cmds"><pre class="cmd">systemctl --user show-environment | grep -E 'MAKEFLAGS|CMAKE'</pre></div>
+    <div class="expect"><b>You should see</b> <code>MAKEFLAGS=-j16</code> and <code>CMAKE_BUILD_PARALLEL_LEVEL=16</code>.</div>
+    <div class="undo"><b>Undo</b> <code>rm ~/.config/environment.d/50-theosis-build.conf</code>, log out and in.</div>
+  </div>
+
+  <div class="step" data-step="F2">
+    <div class="step-head"><input type="checkbox" id="chk-F2" aria-label="F2 done"><span class="step-id">F2</span><h3>zram becomes the only swap</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">3 min</span></div>
+    <p>You have two swaps: zram in RAM (about 800 MB/s, measured) and an 8 GiB swap file on the SSD (about 14 MB/s, and it stalls). With both, cold pages fill zram and hot pages get pushed to the slow file. Turning the file off and tuning the kernel for zram keeps swapping fast. systemd-oomd stays on so a full zram cannot hang the machine.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo cp ~/theosis-kit/etc/98-theosis-zram.conf /etc/sysctl.d/</pre>
+      <pre class="cmd">sudo sysctl --system | grep -E 'swappiness|page-cluster|watermark'</pre>
+      <pre class="cmd">sudo swapoff /swap.img</pre>
+      <pre class="cmd">sudo nano /etc/fstab</pre>
+    </div>
+    <p>In nano, find the line that starts with <code>/swap.img</code> and type <code>#</code> at its very start. Save (Ctrl+O, Enter) and quit (Ctrl+X).</p>
+    <div class="cmds"><pre class="cmd">swapon --show</pre></div>
+    <div class="expect"><b>You should see</b> only <code>/dev/zram0</code> in the list, and the sysctl line printed <code>vm.swappiness = 180</code>.</div>
+    <div class="fail"><b>If swapoff hangs for a while</b> it is moving pages back into RAM. Wait. It finishes.</div>
+    <div class="undo"><b>Undo</b> remove the <code>#</code> in fstab, <code>sudo swapon /swap.img</code>, <code>sudo rm /etc/sysctl.d/98-theosis-zram.conf</code>, <code>sudo sysctl --system</code>.</div>
+  </div>
+
+  <div class="step" data-step="F3">
+    <div class="step-head"><input type="checkbox" id="chk-F3" aria-label="F3 done"><span class="step-id">F3</span><h3>Fewer disk writes: mount options</h3></div>
+    <div class="badges"><span class="badge b-risk">risk: a typo stops boot</span><span class="badge b-time">5 min</span></div>
+    <p>Three changes in <code>/etc/fstab</code>. <code>noatime</code> stops a disk write every time a file is read. <code>lazytime</code> batches timestamp writes. <code>errors=remount-ro</code> protects the disk if the filesystem finds an error. The EFI partition gets <code>umask=0077</code> so normal users cannot read boot files (install finding, 11-02).</p>
+    <div class="cmds">
+      <pre class="cmd">sudo cp /etc/fstab /etc/fstab.bak-theosis</pre>
+      <pre class="cmd">sudo nano /etc/fstab</pre>
+    </div>
+    <ol>
+      <li>On the line whose second column is <code>/</code> (type ext4): the fourth column holds the options, often <code>defaults</code>. Replace it with <code>defaults,noatime,lazytime,errors=remount-ro</code>. No spaces inside the options.</li>
+      <li>On the line whose second column is <code>/boot/efi</code> (type vfat): replace its options with <code>umask=0077</code>.</li>
+      <li>Save and quit.</li>
+    </ol>
+    <div class="cmds">
+      <pre class="cmd">sudo findmnt --verify</pre>
+      <pre class="cmd">sudo systemctl daemon-reload</pre>
+      <pre class="cmd">sudo mount -o remount /</pre>
+      <pre class="cmd">findmnt -no OPTIONS /</pre>
+    </div>
+    <div class="expect"><b>You should see</b> "0 parse errors" from findmnt --verify (warnings about swap are fine), and the options for <code>/</code> include <code>noatime,lazytime</code>. The EFI change applies at the next boot.</div>
+    <div class="fail"><b>If findmnt --verify reports an error</b> do not reboot. Run <code>sudo cp /etc/fstab.bak-theosis /etc/fstab</code> and try the edit again.</div>
+    <div class="undo"><b>If the laptop does not boot after this</b> boot the USB, choose Try Ubuntu, open a terminal, run <code>sudo mount /dev/nvme0n1p6 /mnt</code> then <code>sudo cp /mnt/etc/fstab.bak-theosis /mnt/etc/fstab</code>, reboot.</div>
+  </div>
+
+  <div class="step" data-step="F4">
+    <div class="step-head"><input type="checkbox" id="chk-F4" aria-label="F4 done"><span class="step-id">F4</span><h3>The agent memory box</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">5 min</span></div>
+    <p>Right now each Claude session has its own 12 GB cap (C09), but if any program inside a session runs out of memory, the whole session is killed. This step does two things:</p>
+    <ul>
+      <li>All agent sessions share one box (<code>agents.slice</code>) sized to what is free when only the desktop and Brave are open. The desktop can never be starved by agents. Inside the box, agents get lower CPU priority than the desktop only when both want the CPU, so the desktop never stutters.</li>
+      <li>Each session gets <code>OOMPolicy=continue</code>: a runaway build or test dies alone and the session keeps going. Tools inside a session are also capped at 6 GB each.</li>
+      <li>If memory stays under heavy pressure for a long time, systemd-oomd stops the one agent session causing it, never the desktop or Brave.</li>
+    </ul>
+    <p>First close everything except the desktop and Brave (with your usual tabs). Then:</p>
+    <div class="cmds">
+      <pre class="cmd">bash ~/theosis-kit/scripts/make-agents-slice.sh</pre>
+      <pre class="cmd">mkdir -p ~/.config/theosis</pre>
+      <pre class="cmd">cp ~/theosis-kit/user/claude-wrapper.bash ~/.config/theosis/</pre>
+      <pre class="cmd">cp ~/.bashrc ~/.bashrc.bak-theosis</pre>
+      <pre class="cmd">nano ~/.bashrc</pre>
+    </div>
+    <p>In nano: find the block marked <code>Theosis tuning C09</code> (Ctrl+W searches). Delete that whole block (Ctrl+K deletes a line). At the end of the file add this one line, then save and quit:</p>
+    <div class="cmds"><pre class="cmd">source ~/.config/theosis/claude-wrapper.bash</pre></div>
+    <p>Open a new terminal, start <code>claude</code>, and in a second terminal run:</p>
+    <div class="cmds"><pre class="cmd">cat /proc/$(pgrep -n -x claude)/cgroup</pre></div>
+    <div class="expect"><b>You should see</b> a path containing <code>agents.slice/run-</code> and ending in <code>.scope</code>. The script also printed the box size, for example <code>MemoryMax=16000M</code> (yours is whatever was free).</div>
+    <div class="fail"><b>If the path has no agents.slice</b> the old C09 block is still in .bashrc, or you started claude in a terminal opened before the edit.</div>
+    <div class="undo"><b>Undo</b> <code>cp ~/.bashrc.bak-theosis ~/.bashrc</code> and <code>rm ~/.config/systemd/user/agents.slice</code>.</div>
+  </div>
+
+  <div class="step" data-step="F5">
+    <div class="step-head"><input type="checkbox" id="chk-F5" aria-label="F5 done"><span class="step-id">F5</span><h3>Battery stops charging at 80 %</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">1 min</span></div>
+    <p>Your choice from today. ASUS resets the limit on every boot, so a small service sets it again at each boot. Your battery is at 78.5 % health after 292 cycles (measured 11-02), and sitting at 100 % on the charger wears it faster.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo cp ~/theosis-kit/etc/theosis-charge-limit.service /etc/systemd/system/</pre>
+      <pre class="cmd">sudo systemctl daemon-reload</pre>
+      <pre class="cmd">sudo systemctl enable --now theosis-charge-limit.service</pre>
+      <pre class="cmd">cat /sys/class/power_supply/BAT*/charge_control_end_threshold</pre>
+    </div>
+    <div class="expect"><b>You should see</b> <code>80</code>. Before a day away from the charger, run <code>echo 100 | sudo tee /sys/class/power_supply/BAT*/charge_control_end_threshold</code> for a full charge (it goes back to 80 at the next boot).</div>
+    <div class="undo"><b>Undo</b> <code>sudo systemctl disable --now theosis-charge-limit.service</code>, reboot.</div>
+  </div>
+
+  <div class="step" data-step="F6">
+    <div class="step-head"><input type="checkbox" id="chk-F6" aria-label="F6 done"><span class="step-id">F6</span><h3>Power profile stays on Performance</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span></div>
+    <p>You said power draw does not matter. Performance mode gives the most aggressive fan curve and the highest CPU boost Linux offers on this model. The profile daemon remembers it across reboots.</p>
+    <div class="cmds">
+      <pre class="cmd">powerprofilesctl set performance</pre>
+      <pre class="cmd">powerprofilesctl get</pre>
+    </div>
+    <div class="expect"><b>You should see</b> <code>performance</code>.</div>
+  </div>
+
+  <details>
+    <summary>Not in this guide, on purpose</summary>
+    <ul>
+      <li><b>Raising power limits, undervolting, mitigations=off:</b> the CPU is limited by temperature (96 C at about 71 W), not power. More power means more heat against the 97 C shutdown.</li>
+      <li><b>Custom kernels (CachyOS, XanMod):</b> they are unsigned and break Secure Boot, which VALORANT needs.</li>
+      <li><b>spectre_bhi=off:</b> about 5 % on compute, near 0 for agents, and agents run downloaded code. Open question for later.</li>
+      <li><b>Scheduler swaps (scx), coreutils A/B, dirty_bytes, iocost:</b> each needs a measured before and after. Later, one at a time.</li>
+      <li><b>Thermal (TCC offset, stage 2 load test):</b> separate session.</li>
+    </ul>
+  </details>
+</section>
+
+<section class="part" id="desktop">
+  <div class="part-head"><div class="where">Part G · on Ubuntu</div><h2>Hyprland, piece 1</h2><p class="note">Only Hyprland itself with the dionysus feel. The bar, launcher theme, wallpaper and widgets come later, one piece at a time. GNOME stays as a login option the whole way.</p></div>
+  <div class="step" data-step="G1">
+    <div class="step-head"><input type="checkbox" id="chk-G1" aria-label="G1 done"><span class="step-id">G1</span><h3>Campus Wi-Fi password: who keeps it</h3></div>
+    <div class="badges"><span class="badge b-call">your call</span><span class="badge b-safe">reversible</span><span class="badge b-time">2 min</span></div>
+    <p>Look in your inventory for <code>802-1x.password-flags</code>. If it says <code>0</code>, skip this step. If it says <code>1</code>, GNOME's keyring holds the campus password. Hyprland has no GNOME keyring agent running, so campus Wi-Fi would not reconnect. Wi-Fi also only comes up after you log in, so Tailscale cannot reach the laptop after a reboot.</p>
+    <p>The fix stores the password in a system file that only root can read. Wi-Fi then connects at boot, before login, in both GNOME and Hyprland. Type the password at the prompt. It never appears in your shell history.</p>
+    <div class="cmds"><pre class="cmd">sudo nmcli connection edit IITDAD-WiFi1</pre></div>
+    <p>Inside the editor, type these one at a time:</p>
+    <div class="cmds">
+      <pre class="cmd">set 802-1x.password-flags 0</pre>
+      <pre class="cmd">set 802-1x.password</pre>
+      <pre class="cmd">save</pre>
+      <pre class="cmd">quit</pre>
+    </div>
+    <p>After <code>set 802-1x.password</code> it asks for the value. Type your campus password and press Enter.</p>
+    <div class="expect"><b>You should see</b> <code>nmcli -g 802-1x.password-flags connection show IITDAD-WiFi1</code> now prints <code>0</code>, and Wi-Fi stays connected.</div>
+    <div class="undo"><b>Undo</b> run the editor again with <code>set 802-1x.password-flags 1</code>, save, quit. GNOME asks for the password once more.</div>
+  </div>
+
+  <div class="step" data-step="G2">
+    <div class="step-head"><input type="checkbox" id="chk-G2" aria-label="G2 done"><span class="step-id">G2</span><h3>Snapshot, then add the Hyprland PPA</h3></div>
+    <div class="badges"><span class="badge b-risk">risk: third-party repo</span><span class="badge b-time">5 min</span></div>
+    <p>You gave the PPA go today. It carries Hyprland 0.57.1, the current upstream release. It also replaces a few hypr* libraries, so take a snapshot first.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo timeshift --create --comments "before hyprland"</pre>
+      <pre class="cmd">sudo add-apt-repository ppa:cppiber/hyprland</pre>
+      <pre class="cmd">sudo apt update</pre>
+      <pre class="cmd">apt policy hyprland | head -4</pre>
+    </div>
+    <div class="expect"><b>You should see</b> a candidate version starting with <code>0.57.1-1ppa1</code>.</div>
+    <div class="fail"><b>If the candidate is 0.53.3</b> the PPA did not get added. Run add-apt-repository again and read its error.</div>
+  </div>
+
+  <div class="step" data-step="G3">
+    <div class="step-head"><input type="checkbox" id="chk-G3" aria-label="G3 done"><span class="step-id">G3</span><h3>Install Hyprland and the basics, then freeze them</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">5 min</span></div>
+    <p>Installs Hyprland plus everything GNOME gave you for free and Hyprland does not: lock screen, idle, the password popup agent, screenshots, clipboard history, brightness and media keys, the terminal (foot) and the launcher (fuzzel). The hold at the end stops apt from upgrading these by surprise. You upgrade them on purpose, after a snapshot.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo apt install hyprland hypridle hyprlock hyprpolkitagent hyprland-guiutils hyprsunset uwsm xdg-desktop-portal-hyprland xdg-desktop-portal-gtk foot fuzzel grim slurp wl-clipboard cliphist brightnessctl playerctl fonts-jetbrains-mono lua5.4 ppa-purge</pre>
+      <pre class="cmd">sudo apt-mark hold $(dpkg-query -W -f='${Package}\n' | grep -E '^(hypr|libhypr|aquamarine|libaquamarine|uwsm|xdg-desktop-portal-hyprland)')</pre>
+      <pre class="cmd">Hyprland --version | head -2</pre>
+      <pre class="cmd">brightnessctl -l | head -12</pre>
+    </div>
+    <div class="expect"><b>You should see</b> "Hyprland 0.57.1", a list of held packages, and brightnessctl listing a <code>backlight</code> device (for example <code>intel_backlight</code>).</div>
+    <div class="fail"><b>Never install</b> <code>hyprland-unstable</code> or <code>hyprland-plugins</code> from this PPA. They are older git builds that do not match 0.57.1.</div>
+    <div class="undo"><b>Undo everything from this part</b> <code>sudo ppa-purge ppa:cppiber/hyprland</code>, or <code>sudo timeshift --restore</code> and pick "before hyprland".</div>
+  </div>
+
+  <div class="step" data-step="G4">
+    <div class="step-head"><input type="checkbox" id="chk-G4" aria-label="G4 done"><span class="step-id">G4</span><h3>Give each GPU a fixed name</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">1 min</span></div>
+    <p>Your laptop panel is wired to the Intel Arc and the HDMI port to the RTX 4060 (measured 11-03). Hyprland must draw on the Intel one. The script finds both GPUs and creates two fixed names, <code>/dev/dri/intel-igpu</code> and <code>/dev/dri/nvidia-dgpu</code>, because the plain card numbers can swap between boots.</p>
+    <div class="cmds"><pre class="cmd">bash ~/theosis-kit/scripts/make-dri-rules.sh</pre></div>
+    <div class="expect"><b>You should see</b> two lines like <code>/dev/dri/intel-igpu -&gt; card1</code> and <code>/dev/dri/nvidia-dgpu -&gt; card0</code>. The numbers do not matter.</div>
+    <div class="undo"><b>Undo</b> <code>sudo rm /etc/udev/rules.d/95-theosis-dri.rules</code></div>
+  </div>
+
+  <div class="step" data-step="G5">
+    <div class="step-head"><input type="checkbox" id="chk-G5" aria-label="G5 done"><span class="step-id">G5</span><h3>Put the configs in place</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">3 min</span></div>
+    <p>Three Hyprland files plus two small environment files. The environment files tell Hyprland to use the Intel GPU and set cursor size. They live outside the Lua file, as the Hyprland wiki asks for uwsm sessions.</p>
+    <div class="cmds">
+      <pre class="cmd">mkdir -p ~/.config/hypr ~/.config/uwsm ~/Pictures/Screenshots</pre>
+      <pre class="cmd">cp ~/theosis-kit/hypr/hyprland.lua ~/theosis-kit/hypr/hypridle.conf ~/theosis-kit/hypr/hyprlock.conf ~/.config/hypr/</pre>
+      <pre class="cmd">cp ~/theosis-kit/hypr/uwsm/env ~/theosis-kit/hypr/uwsm/env-hyprland ~/.config/uwsm/</pre>
+      <pre class="cmd">nano ~/.config/hypr/hyprland.lua</pre>
+    </div>
+    <p>At the top, under <b>CHOICES</b>: set <code>kbLayout</code> to the layout from your inventory (<code>localectl status</code>, the "X11 Layout" line, for example <code>"us"</code> or <code>"gb"</code>). Leave the rest. Save and quit.</p>
+  </div>
+
+  <div class="step" data-step="G6">
+    <div class="step-head"><input type="checkbox" id="chk-G6" aria-label="G6 done"><span class="step-id">G6</span><h3>Check the config before logging in</h3></div>
+    <div class="badges"><span class="badge b-safe">read only</span><span class="badge b-time">1 min</span></div>
+    <p>The config was checked against the 0.57.1 source code, but this is its first run on a real Hyprland. These two checks catch mistakes without starting Hyprland.</p>
+    <div class="cmds">
+      <pre class="cmd">luac5.4 -p ~/.config/hypr/hyprland.lua</pre>
+      <pre class="cmd">Hyprland --verify-config -c ~/.config/hypr/hyprland.lua 2>&1 | tee ~/theosis-kit/logs/hypr-verify.txt</pre>
+    </div>
+    <div class="expect"><b>You should see</b> nothing from luac (no news is good news), and <code>config ok</code> at the end of the second.</div>
+    <div class="fail"><b>If it lists errors</b> do not log in to Hyprland yet. The log is saved. Paste the errors into Claude on Ubuntu (it can fix Lua), or bring the log back to Windows with Part K.</div>
+  </div>
+
+  <div class="step" data-step="G7">
+    <div class="step-head"><input type="checkbox" id="chk-G7" aria-label="G7 done"><span class="step-id">G7</span><h3>First login</h3></div>
+    <div class="badges"><span class="badge b-safe">GNOME stays one click away</span><span class="badge b-time">5 min</span></div>
+    <ol>
+      <li>Log out of GNOME.</li>
+      <li>On the login screen, click your name, then the gear icon at the bottom right. Pick the <b>Hyprland</b> entry that mentions <b>uwsm</b> ("Hyprland (uwsm-managed)"). Enter your password.</li>
+      <li>You get a dark screen with no bar. That is expected for piece 1. The bar is piece 2.</li>
+      <li>Press <b>ALT+T</b> for a terminal. Try the keys in the table below.</li>
+    </ol>
+    <div class="table-wrap"><table>
+      <thead><tr><th>keys</th><th>does</th></tr></thead>
+      <tbody>
+        <tr><td>ALT+T / ALT+B / ALT+F / ALT+SPACE</td><td>terminal / Brave / files / app launcher</td></tr>
+        <tr><td>ALT+P</td><td>screenshot of a region, to clipboard and ~/Pictures/Screenshots</td></tr>
+        <tr><td>Print</td><td>full-screen screenshot</td></tr>
+        <tr><td>SUPER+Q</td><td>close window</td></tr>
+        <tr><td>SUPER+arrows or H J K L</td><td>move focus</td></tr>
+        <tr><td>SUPER+SHIFT+arrows or H J K L</td><td>move the window</td></tr>
+        <tr><td>SUPER+CTRL+arrows</td><td>resize. SUPER+R enters resize mode, Esc leaves</td></tr>
+        <tr><td>SUPER+1 to 0 / SUPER+SHIFT+1 to 0</td><td>go to workspace / send window there</td></tr>
+        <tr><td>SUPER+V / SUPER+F</td><td>float / fullscreen</td></tr>
+        <tr><td>SUPER+T / SUPER+SHIFT+T</td><td>flip the split / switch dwindle and master layout</td></tr>
+        <tr><td>SUPER+S / SUPER+SHIFT+S</td><td>drop-down scratchpad / send window to it</td></tr>
+        <tr><td>SUPER+SHIFT+V</td><td>clipboard history</td></tr>
+        <tr><td>SUPER+Escape</td><td>lock</td></tr>
+        <tr><td>SUPER+SHIFT+R</td><td>reload config (saving the file also reloads it)</td></tr>
+        <tr><td>SUPER+SHIFT+E</td><td>log out back to the login screen</td></tr>
+        <tr><td>3-finger swipe left or right</td><td>change workspace</td></tr>
+      </tbody>
+    </table></div>
+    <div class="fail"><b>If the screen stays black or Hyprland crashes</b> press Ctrl+Alt+F3, log in on the text screen, run <code>tail -60 /run/user/$(id -u)/hypr/*/hyprland.log &gt; ~/theosis-kit/logs/hypr-crash.txt</code> to save the log, then <code>sudo systemctl restart display-manager</code> and pick <b>Ubuntu</b> (GNOME) at the gear. Nothing is lost.</div>
+    <div class="undo"><b>Back to GNOME any time</b> SUPER+SHIFT+E, then pick Ubuntu at the gear on the login screen.</div>
+  </div>
+
+  <div class="step" data-step="G8">
+    <div class="step-head"><input type="checkbox" id="chk-G8" aria-label="G8 done"><span class="step-id">G8</span><h3>Acceptance checks</h3></div>
+    <div class="badges"><span class="badge b-safe">read only</span><span class="badge b-time">10 min</span></div>
+    <p>In a Hyprland terminal (ALT+T):</p>
+    <div class="cmds">
+      <pre class="cmd">hyprctl monitors | head -6</pre>
+      <pre class="cmd">hyprctl configerrors</pre>
+      <pre class="cmd">systemctl --user is-active hypridle.service hyprpolkitagent.service</pre>
+      <pre class="cmd">bash ~/projects/tuning/bench/verify-all.sh | tee ~/theosis-kit/logs/hypr-verify-all.txt</pre>
+    </div>
+    <ul>
+      <li><code>hyprctl monitors</code>: <code>2880x1620@120</code> and <code>scale: 1.50</code>.</li>
+      <li><code>configerrors</code>: empty.</li>
+      <li>Both services: <code>active</code>. If one says inactive, run <code>systemctl --user enable --now hypridle.service hyprpolkitagent.service</code> once.</li>
+      <li>verify-all: every PASS. C13 is a GNOME setting and may show differently here, that is expected.</li>
+    </ul>
+    <p>By hand:</p>
+    <ul>
+      <li>Brightness keys change the screen. Volume and mic-mute keys work. If a key does nothing, note which one.</li>
+      <li>Close the lid for 5 seconds and open it. The lock screen shows. Unlock with your password.</li>
+      <li>ALT+P, drag a box, then paste into a chat: the screenshot pastes.</li>
+      <li>Reboot, log in to Hyprland. Wi-Fi is connected without you doing anything.</li>
+    </ul>
+    <p class="note">The 4060 should also be asleep in Hyprland: <code>cat /sys/bus/pci/devices/0000:01:00.0/power/runtime_status</code> prints <code>suspended</code> (use the NVIDIA address from G4 if it differs). You said power draw does not matter, so this is only a sanity check that Hyprland is drawing on the Intel GPU as planned.</p>
+  </div>
+
+  <details>
+    <summary>What comes after piece 1</summary>
+    <ol>
+      <li>Waybar, styled toward dionysus</li>
+      <li>rofi launcher</li>
+      <li>wallpaper with hyprpaper</li>
+      <li>terminal theme and fastfetch</li>
+      <li>cava visualizer</li>
+      <li>eww HUD widgets, one at a time</li>
+    </ol>
+    <p>Each one is its own session with Claude, after you bring back the logs.</p>
+  </details>
+</section>
+
+<section class="part" id="agents">
+  <div class="part-head"><div class="where">Part H · on Ubuntu</div><h2>Agent stack</h2></div>
+
+  <div class="step" data-step="H1">
+    <div class="step-head"><input type="checkbox" id="chk-H1" aria-label="H1 done"><span class="step-id">H1</span><h3>Claude Code sandbox</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">3 min</span></div>
+    <p>Claude Code's sandbox needs two packages. Ubuntu blocks the sandbox tool by default, so this step adds the AppArmor profile from Claude Code's own docs. It allows only that one program, the rest of the system keeps the protection.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo apt install bubblewrap socat</pre>
+      <pre class="cmd">which bwrap</pre>
+      <pre class="cmd">sudo cp ~/theosis-kit/etc/bwrap /etc/apparmor.d/bwrap</pre>
+      <pre class="cmd">sudo systemctl reload apparmor</pre>
+    </div>
+    <p>Restart Claude Code and type <code>/sandbox</code> in it.</p>
+    <div class="expect"><b>You should see</b> <code>/usr/bin/bwrap</code> from which, and /sandbox shows the sandbox as available.</div>
+    <div class="fail"><b>If which shows a different path</b> the profile does not apply. Tell Claude on Windows next session.</div>
+    <div class="undo"><b>Undo</b> <code>sudo rm /etc/apparmor.d/bwrap</code>, <code>sudo systemctl reload apparmor</code>.</div>
+  </div>
+
+  <div class="step" data-step="H2">
+    <div class="step-head"><input type="checkbox" id="chk-H2" aria-label="H2 done"><span class="step-id">H2</span><h3>Python and Node tooling</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">3 min</span></div>
+    <p><b>uv</b> runs Python projects and installs packages many times faster than pip. <b>mise</b> manages Node versions. Shims mode keeps shell start fast (0.30 s to 0.04 s measured on WSL). Node 26 is the current LTS.</p>
+    <div class="cmds">
+      <pre class="cmd">curl -LsSf https://astral.sh/uv/install.sh | sh</pre>
+      <pre class="cmd">curl https://mise.run | sh</pre>
+      <pre class="cmd">echo 'eval "$(~/.local/bin/mise activate bash --shims)"' >> ~/.bashrc</pre>
+    </div>
+    <p>Open a new terminal:</p>
+    <div class="cmds">
+      <pre class="cmd">mise use -g node@26</pre>
+      <pre class="cmd">node --version</pre>
+      <pre class="cmd">uv --version</pre>
+    </div>
+    <div class="expect"><b>You should see</b> a <code>v26.</code> Node version and a uv version.</div>
+    <div class="undo"><b>Undo</b> delete <code>~/.local/bin/uv</code>, <code>~/.local/bin/mise</code> and the mise line in .bashrc.</div>
+  </div>
+
+  <div class="step" data-step="H3">
+    <div class="step-head"><input type="checkbox" id="chk-H3" aria-label="H3 done"><span class="step-id">H3</span><h3>Tailscale, mosh and tmux</h3></div>
+    <div class="badges"><span class="badge b-safe">reversible</span><span class="badge b-time">5 min</span></div>
+    <p>Puts Ubuntu on your tailnet so your phone can reach it (the same phone door you use on WSL), and mosh keeps the phone session alive over bad Wi-Fi.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo apt install mosh tmux</pre>
+      <pre class="cmd">curl -fsSL https://tailscale.com/install.sh | sh</pre>
+      <pre class="cmd">sudo tailscale up --ssh</pre>
+    </div>
+    <p>It prints a login link. Open it in Brave and log in with the same GitHub account as your other nodes. Then:</p>
+    <div class="cmds"><pre class="cmd">tailscale status</pre></div>
+    <div class="expect"><b>You should see</b> this machine plus your phone and the WSL node in the list.</div>
+    <div class="undo"><b>Undo</b> <code>sudo tailscale down</code>, <code>sudo apt remove tailscale</code>.</div>
+  </div>
+
+  <p class="note">The firewall (ufw) is parked by you for now. It is not in this guide. Codex, OpenCode and the cswap account switcher go in a later session.</p>
+</section>
+
+<section class="part" id="grub">
+  <div class="part-head"><div class="where">Part I · on Ubuntu</div><h2>Reboots from Linux come back to Linux</h2></div>
+  <div class="step" data-step="I1">
+    <div class="step-head"><input type="checkbox" id="chk-I1" aria-label="I1 done"><span class="step-id">I1</span><h3>Keep Windows as default, but return to Linux on purpose</h3></div>
+    <div class="badges"><span class="badge b-call">your call</span><span class="badge b-safe">reversible</span><span class="badge b-time">5 min</span></div>
+    <p>GRUB boots Windows by default (your choice). So a reboot started from Linux, for example from your phone over Tailscale, lands in Windows and the phone door dies. This lets Linux say "next boot only: Ubuntu", while a normal cold boot still goes to Windows. Skip this step if you do not want it.</p>
+    <div class="cmds">
+      <pre class="cmd">sudo cp /etc/default/grub /etc/default/grub.bak-theosis</pre>
+      <pre class="cmd">sudo nano /etc/default/grub</pre>
+    </div>
+    <p>Change the <code>GRUB_DEFAULT=</code> line to <code>GRUB_DEFAULT=saved</code>. Save and quit. Then find the exact Windows entry name in your inventory (search <code>menuentry</code>), it looks like <code>Windows Boot Manager (on /dev/nvme0n1p1)</code>:</p>
+    <div class="cmds">
+      <pre class="cmd">sudo update-grub</pre>
+      <pre class="cmd">sudo grub-set-default "Windows Boot Manager (on /dev/nvme0n1p1)"</pre>
+      <pre class="cmd">echo "alias reboot-linux='sudo grub-reboot Ubuntu && sudo reboot'" >> ~/.bashrc</pre>
+    </div>
+    <div class="expect"><b>You should see</b> a cold boot still goes to Windows, and <code>reboot-linux</code> in a new terminal reboots straight into Ubuntu.</div>
+    <div class="undo"><b>Undo</b> <code>sudo cp /etc/default/grub.bak-theosis /etc/default/grub</code>, <code>sudo update-grub</code>, delete the alias line in .bashrc.</div>
+  </div>
+</section>
+
+<section class="part" id="vmd">
+  <div class="part-head"><div class="where">Part J · Windows, BIOS, then Ubuntu</div><h2>VMD off, last</h2><p class="note">This ends the 30 second SSD freezes that hit about half of your boots (Intel erratum MTL016). You moved it to the end. It needs one Safe Mode boot of Windows. Only do it if Part B found the VMD switch.</p></div>
+
+  <div class="step" data-step="J1">
+    <div class="step-head"><input type="checkbox" id="chk-J1" aria-label="J1 done"><span class="step-id">J1</span><h3>Prepare Windows</h3></div>
+    <div class="badges"><span class="badge b-risk">risk: read all of Part J first</span><span class="badge b-time">2 min</span></div>
+    <p>Without this, Windows would crash at boot (INACCESSIBLE_BOOT_DEVICE) after VMD goes off, because it only loaded the VMD storage driver. Safe Mode makes it load the plain NVMe driver once. In Windows <b>Terminal (Admin)</b>:</p>
+    <div class="cmds">
+      <pre class="cmd">manage-bde -status C:</pre>
+      <pre class="cmd">bcdedit /set {current} safeboot minimal</pre>
+    </div>
+    <div class="expect"><b>You should see</b> "Fully Decrypted" and "Protection Off" from manage-bde (BitLocker must be off), then "The operation completed successfully."</div>
+    <div class="fail"><b>If BitLocker is on</b> stop here and tell Claude on Windows.</div>
+  </div>
+
+  <div class="step" data-step="J2">
+    <div class="step-head"><input type="checkbox" id="chk-J2" aria-label="J2 done"><span class="step-id">J2</span><h3>Switch VMD off in the BIOS</h3></div>
+    <div class="badges"><span class="badge b-risk">risk</span><span class="badge b-time">3 min</span></div>
+    <ol>
+      <li>Restart. Tap <b>F2</b> at the ASUS logo. Press <b>F7</b>.</li>
+      <li>Advanced tab, the VMD menu you found in Part B. Set the VMD controller to <b>Disabled</b>.</li>
+      <li>Press <b>F10</b>, confirm Save and Exit.</li>
+      <li>In GRUB pick <b>Windows Boot Manager</b>. Windows starts in Safe Mode (black background, "Safe Mode" in the corners). Log in, with your password if the PIN is refused.</li>
+    </ol>
+  </div>
+
+  <div class="step" data-step="J3">
+    <div class="step-head"><input type="checkbox" id="chk-J3" aria-label="J3 done"><span class="step-id">J3</span><h3>Leave Safe Mode</h3></div>
+    <div class="badges"><span class="badge b-time">2 min</span></div>
+    <p>In Safe Mode, open Terminal (Admin) and run:</p>
+    <div class="cmds"><pre class="cmd">bcdedit /deletevalue {current} safeboot</pre></div>
+    <p>Restart, pick Windows again. Windows boots normally. Launch VALORANT once to check Vanguard is happy.</p>
+    <div class="expect"><b>You should see</b> a normal Windows desktop and VALORANT reaching its menu.</div>
+    <div class="undo"><b>If Windows will not boot at all</b> F2, F7, set VMD back to Enabled, F10. Windows boots again (into Safe Mode if the safeboot value is still set, then run the J3 command).</div>
+  </div>
+
+  <div class="step" data-step="J4">
+    <div class="step-head"><input type="checkbox" id="chk-J4" aria-label="J4 done"><span class="step-id">J4</span><h3>Check Ubuntu after VMD off</h3></div>
+    <div class="badges"><span class="badge b-time">5 min</span></div>
+    <p>Restart and pick Ubuntu in GRUB. If GRUB does not appear and the laptop goes straight to Windows, see "If it fails". In Ubuntu:</p>
+    <div class="cmds">
+      <pre class="cmd">lsblk</pre>
+      <pre class="cmd">sudo efibootmgr -v | tee ~/theosis-kit/logs/after-vmd-efibootmgr.txt</pre>
+      <pre class="cmd">journalctl -k -b | grep -c "completion polled"</pre>
+      <pre class="cmd">bash ~/projects/tuning/bench/verify-all.sh | tee ~/theosis-kit/logs/after-vmd-verify.txt</pre>
+    </div>
+    <div class="expect"><b>You should see</b> the disk still named <code>nvme0n1</code>, an "ubuntu" entry in efibootmgr, <code>0</code> from the grep, and all PASS. Over the next 10 boots, run the grep once per boot. The target is 0 every time (before: about half of boots had a 30 s freeze).</div>
+    <div class="fail"><b>If the laptop skips GRUB</b> tap <b>Esc</b> at power on, choose "Enter Setup" or the boot file option, browse to <code>EFI/ubuntu/shimx64.efi</code>. Once in Ubuntu, check <code>lsblk</code> shows <code>nvme0n1</code> with partition 1 as the EFI one, then run <code>sudo efibootmgr -c -d /dev/nvme0n1 -p 1 -L ubuntu -l '\EFI\ubuntu\shimx64.efi'</code>.</div>
+  </div>
+</section>
+
+<section class="part" id="return">
+  <div class="part-head"><div class="where">Part K · on Ubuntu, at the end of each sitting</div><h2>Send the results back</h2></div>
+  <div class="step" data-step="K1">
+    <div class="step-head"><input type="checkbox" id="chk-K1" aria-label="K1 done"><span class="step-id">K1</span><h3>Copy logs to Windows</h3></div>
+    <div class="badges"><span class="badge b-safe">safe</span><span class="badge b-time">1 min</span></div>
+    <p>Copies <code>~/theosis-kit/logs</code> into <code>Downloads\theosis-kit-logs</code> on Windows. Next time you open Claude on Windows, say "read the theosis logs" and it updates the vault from them.</p>
+    <div class="cmds"><pre class="cmd">bash ~/theosis-kit/scripts/send-logs-to-windows.sh</pre></div>
+    <p class="note">Also tell Claude which steps you ticked and anything that looked different from the "you should see" lines.</p>
+  </div>
+</section>
+</div>
+
+<script>
+(function () {
+  var KEY = "theosis-linux-guide-v1";
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  var steps = Array.prototype.slice.call(document.querySelectorAll(".step[data-step]"));
+  var prog = document.getElementById("progress");
+  function count() {
+    var n = steps.filter(function (s) { return s.classList.contains("done"); }).length;
+    prog.textContent = n + " of " + steps.length + " steps done";
+  }
+  steps.forEach(function (s) {
+    var id = s.getAttribute("data-step");
+    var box = s.querySelector('input[type="checkbox"]');
+    if (!box) return;
+    if (state[id]) { box.checked = true; s.classList.add("done"); }
+    box.addEventListener("change", function () {
+      state[id] = box.checked; s.classList.toggle("done", box.checked); save(); count();
+    });
+  });
+  count();
+  document.querySelectorAll("pre.cmd").forEach(function (pre) {
+    var text = pre.textContent;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "copy"; b.textContent = "copy";
+    b.setAttribute("aria-label", "Copy command");
+    b.addEventListener("click", function () {
+      function done() { b.textContent = "copied"; b.classList.add("ok"); setTimeout(function () { b.textContent = "copy"; b.classList.remove("ok"); }, 1400); }
+      function fallback() {
+        var r = document.createRange(); r.selectNodeContents(pre.firstChild || pre);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = "selected";
+      }
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+    });
+    pre.appendChild(b);
+  });
+})();
+</script>

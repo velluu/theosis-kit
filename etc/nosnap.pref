@@ -1,0 +1,4 @@
+#Theosis: never install snapd again. A priority below 0 blocks installation (apt_preferences(5)).
+Package: snapd
+Pin: release a=*
+Pin-Priority: -10
